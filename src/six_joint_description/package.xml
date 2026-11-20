@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>four_joint_description</name>
+  <name>six_joint_description</name>
   <version>0.0.1</version>
-  <description>URDF/Xacro description for a four-DOF robot.</description>
+  <description>URDF/Xacro description for a six-DOF robot.</description>
   <maintainer email="rithani@lgb.co.in">Robot Team</maintainer>
   <license>Apache-2.0</license>
   <buildtool_depend>ament_cmake</buildtool_depend>

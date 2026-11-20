@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(four_joint_description)
+project(six_joint_description)
 
 find_package(ament_cmake REQUIRED)
 

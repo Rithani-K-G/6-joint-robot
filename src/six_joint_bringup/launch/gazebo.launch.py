@@ -13,17 +13,17 @@ from launch_ros.parameter_descriptions import ParameterValue
 def generate_launch_description():
 
     description_share = get_package_share_directory(
-        'four_joint_description'
+        'six_joint_description'
     )
 
     bringup_share = get_package_share_directory(
-        'four_joint_bringup'
+        'six_joint_bringup'
     )
 
     xacro_file = os.path.join(
         description_share,
         'urdf',
-        'four_joint_robot.urdf.xacro'
+        'six_joint_robot.urdf.xacro'
     )
 
     controllers_file = os.path.join(
@@ -78,7 +78,7 @@ def generate_launch_description():
         executable='create',
         arguments=[
             '-topic', '/robot_description',
-            '-name', 'four_joint_robot'
+            '-name', 'six_joint_robot'
         ],
         output='screen'
     )
