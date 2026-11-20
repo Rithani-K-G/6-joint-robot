@@ -84,4 +84,9 @@
       link2="gripper_2_link"
       reason="Adjacent"/>
 
+  <disable_collisions
+      link1="gripper_1_link"
+      link2="gripper_2_link"
+      reason="Adjacent"/>
+
 </robot>
