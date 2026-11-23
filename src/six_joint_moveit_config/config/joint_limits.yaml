@@ -1,11 +1,11 @@
 joint_limits:
-  base_joint:
+  shoulder_pan_joint:
     has_velocity_limits: true
     max_velocity: 1.0
     has_acceleration_limits: true
     max_acceleration: 2.0
 
-  shoulder_joint:
+  shoulder_lift_joint:
     has_velocity_limits: true
     max_velocity: 0.5
     has_acceleration_limits: true
@@ -17,20 +17,20 @@ joint_limits:
     has_acceleration_limits: true
     max_acceleration: 1.0
 
-  wrist_joint:
+  wrist_1_joint:
     has_velocity_limits: true
     max_velocity: 1.0
     has_acceleration_limits: true
     max_acceleration: 2.0
 
-  gripper_1_joint:
+  wrist_2_joint:
     has_velocity_limits: true
-    max_velocity: 0.05
+    max_velocity: 1.0
     has_acceleration_limits: true
-    max_acceleration: 0.1
+    max_acceleration: 2.0
 
-  gripper_2_joint:
+  wrist_3_joint:
     has_velocity_limits: true
-    max_velocity: 0.05
+    max_velocity: 1.0
     has_acceleration_limits: true
-    max_acceleration: 0.1
+    max_acceleration: 2.0

@@ -1,43 +1,21 @@
+
 #!/usr/bin/env python3
 
 """
-Six-Joint Robot Controller
-==========================
+Six-Axis Robot Controller
+=========================
 
-Robot configuration:
-    J1-J4 : Revolute arm joints
-    J5-J6 : Prismatic gripper joints
+Control modes:
+    1. Joint-angle control
+    2. End-effector XYZ control
 
-Architecture:
-    Python
-       |
-       v
-    MoveIt 2
-       |
-       +---- arm planning group
-       |         |
-       |         v
-       |     arm_controller
-       |
-       +---- gripper planning group
-                 |
-                 v
-             gripper_controller
-       |
-       v
-    Gazebo Harmonic
+Robot:
+    6 revolute joints
+    No gripper
 
-Features:
-    1. Accept XYZ coordinates in metres.
-    2. Plan arm movement using inverse kinematics.
-    3. Inspect the generated trajectory.
-    4. Execute the arm trajectory.
-    5. Open and close gripper using MoveIt.
-    6. Repeat multiple XYZ movements.
-
-Reference frame: base_link
-Arm end-effector: tool0
-Gripper reference: wrist_link
+MoveIt planning group: arm
+Base frame:             base_link
+End-effector frame:     tool0
 """
 
 import sys
@@ -46,8 +24,8 @@ import threading
 
 import rclpy
 
-from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.parameter import Parameter
 
 from pymoveit2 import MoveIt2
@@ -57,77 +35,66 @@ from pymoveit2 import MoveIt2
 # ROBOT CONFIGURATION
 # ============================================================
 
-# Four revolute arm joints
-ARM_JOINT_NAMES = [
-    "base_joint",
-    "shoulder_joint",
+JOINT_NAMES = [
+    "shoulder_pan_joint",
+    "shoulder_lift_joint",
     "elbow_joint",
-    "wrist_joint"
+    "wrist_1_joint",
+    "wrist_2_joint",
+    "wrist_3_joint"
 ]
 
-# Two prismatic gripper joints
-GRIPPER_JOINT_NAMES = [
-    "gripper_1_joint",
-    "gripper_2_joint"
-]
+BASE_LINK = "shoulder_link"
+END_EFFECTOR = "wrist_3_link"
 
-# Robot frames
-BASE_LINK = "base_link"
-ARM_END_EFFECTOR = "tool0"
+PLANNING_GROUP = "arm"
 
-# Gripper group uses joint-space targets.
-# This link is only a reference for the MoveIt interface.
-GRIPPER_REFERENCE_LINK = "gripper_1_link"
-GRIPPER_BASE_LINK = "wrist_link"
+# Joint limits in degrees.
+# These must agree with your URDF and MoveIt configuration.
 
-# MoveIt planning groups
-ARM_GROUP = "arm"
-GRIPPER_GROUP = "gripper"
+JOINT_LIMITS = {
+    "shoulder_pan_joint":   (-360.0, 360.0),
+    "shoulder_lift_joint":  (-360.0, 360.0),
+    "elbow_joint":          (-360.0, 360.0),
+    "wrist_1_joint":        (-360.0, 360.0),
+    "wrist_2_joint":        (-360.0, 360.0),
+    "wrist_3_joint":        (-360.0, 360.0)
+}
 
-# Gripper positions (metres)
-GRIPPER_OPEN = [0.020, 0.020]
-GRIPPER_CLOSED = [0.000, 0.000]
+POSITION_TOLERANCE = 0.005
+JOINT_TOLERANCE = 0.001
 
-# Planning parameters
-ARM_POSITION_TOLERANCE = 0.005
 PLANNING_TIMEOUT = 30.0
 EXECUTION_TIMEOUT = 60.0
 
-# Gripper planning tolerance (metres)
-GRIPPER_TOLERANCE = 0.001
-
 
 # ============================================================
-# TERMINAL INPUT
+# USER INPUT
 # ============================================================
 
-def read_coordinate(label: str) -> float:
-    """Read one finite XYZ coordinate in metres."""
+def read_number(label):
 
     while True:
 
         try:
 
-            value = float(
-                input(f"{label} (metres): ").strip()
-            )
+            value = float(input(f"{label}: ").strip())
 
             if math.isfinite(value):
                 return value
 
-            print("Enter a finite number.")
+            print("Please enter a finite number.")
 
         except ValueError:
 
-            print("Invalid input. Example: 0.30")
+            print("Invalid input. Try again.")
 
         except KeyboardInterrupt:
 
             raise
 
 
-def ask_confirmation(message: str) -> bool:
-    """Ask the user for confirmation."""
+def ask_confirmation(message):
 
     answer = input(
         f"\n{message} [y/N]: "
@@ -136,59 +103,149 @@ def ask_confirmation(message: str) -> bool:
     return answer in ("y", "yes")
 
 
+def select_control_mode():
+
+    while True:
+
+        print("\n======================================")
+        print("       ROBOT CONTROL MODE")
+        print("======================================")
+
+        print("1. Joint-angle control")
+        print("2. End-effector XYZ control")
+        print("3. Exit")
+
+        choice = input("\nSelect mode: ").strip()
+
+        if choice in ("1", "2", "3"):
+            return choice
+
+        print("Invalid selection. Choose 1, 2 or 3.")
+
+
 # ============================================================
-# TRAJECTORY DEBUGGING
+# JOINT ANGLE INPUT
 # ============================================================
 
-def print_trajectory(trajectory, joint_type="arm"):
-    """Display trajectory information."""
+def get_joint_angles():
+
+    print("\n======================================")
+    print("        SIX JOINT ANGLE INPUT")
+    print("======================================")
+
+    print("Enter angles in degrees.")
+    print("Each angle must be within its configured limits.")
+
+    angles_degrees = []
+
+    for index, joint_name in enumerate(JOINT_NAMES):
+
+        lower, upper = JOINT_LIMITS[joint_name]
+
+        print(f"\nJ{index + 1}: {joint_name}")
+        print(f"Allowed range: {lower}° to {upper}°")
+
+        while True:
+
+            angle = read_number(
+                f"Enter J{index + 1} angle (degrees)"
+            )
+
+            if lower <= angle <= upper:
+
+                angles_degrees.append(angle)
+                break
+
+            print(
+                f"Out of range! Enter between "
+                f"{lower}° and {upper}°."
+            )
+
+    print("\n========== TARGET JOINT ANGLES ==========")
+
+    for name, angle in zip(JOINT_NAMES, angles_degrees):
+
+        print(f"{name}: {angle:.2f}°")
+
+    # Convert degrees to radians for MoveIt.
+
+    angles_radians = [
+        math.radians(angle)
+        for angle in angles_degrees
+    ]
+
+    return angles_radians
+
+
+# ============================================================
+# XYZ INPUT
+# ============================================================
+
+def get_xyz_coordinates():
+
+    print("\n======================================")
+    print("       END-EFFECTOR XYZ INPUT")
+    print("======================================")
+
+    print("Enter target coordinates in metres.")
+
+    x = read_number("X coordinate")
+    y = read_number("Y coordinate")
+    z = read_number("Z coordinate")
+
+    print("\n========== TARGET POSITION ==========")
+
+    print(f"X: {x:.4f} m")
+    print(f"Y: {y:.4f} m")
+    print(f"Z: {z:.4f} m")
+
+    return x, y, z
+
+
+# ============================================================
+# TRAJECTORY INFORMATION
+# ============================================================
+
+def print_trajectory(trajectory):
 
     if trajectory is None:
+
         print("No trajectory available.")
         return
 
     if not trajectory.points:
+
         print("Trajectory contains no points.")
         return
-
-    print("\n========== TRAJECTORY DEBUG ==========")
-
-    print("Joint names:", trajectory.joint_names)
 
     first_point = trajectory.points[0]
     last_point = trajectory.points[-1]
 
-    print("\nStarting positions:")
+    print("\n========== TRAJECTORY DETAILS ==========")
+
+    print("Joint names:", trajectory.joint_names)
+
+    print("\nStarting joint positions:")
 
     for name, position in zip(
         trajectory.joint_names,
         first_point.positions
     ):
 
-        if joint_type == "arm":
-            print(
-                f"  {name}: {math.degrees(position):.3f} degrees"
-            )
-        else:
-            print(
-                f"  {name}: {position:.5f} metres"
-            )
+        print(
+            f"  {name}: {math.degrees(position):.2f}°"
+        )
 
-    print("\nFinal positions:")
+    print("\nTarget joint positions:")
 
     for name, position in zip(
         trajectory.joint_names,
         last_point.positions
     ):
 
-        if joint_type == "arm":
-            print(
-                f"  {name}: {math.degrees(position):.3f} degrees"
-            )
-        else:
-            print(
-                f"  {name}: {position:.5f} metres"
-            )
+        print(
+            f"  {name}: {math.degrees(position):.2f}°"
+        )
 
     duration = last_point.time_from_start
 
@@ -197,25 +254,20 @@ def print_trajectory(trajectory, joint_type="arm"):
         duration.nanosec / 1e9
     )
 
-    print(f"\nTrajectory duration: {total_time:.3f} seconds")
+    print(f"\nEstimated trajectory duration: {total_time:.2f} seconds")
 
-    print("======================================\n")
+    print("========================================")
 
 
 # ============================================================
 # PLAN AND EXECUTE
 # ============================================================
 
-def execute_trajectory(
-    moveit,
-    trajectory,
-    operation_name
-):
-    """Execute a previously planned MoveIt trajectory."""
+def plan_and_execute(moveit, trajectory, operation_name):
 
     if trajectory is None:
 
-        print(f"\n{operation_name}: Planning failed.")
+        print("\nPlanning failed.")
 
         failure = moveit.last_failure()
 
@@ -224,25 +276,18 @@ def execute_trajectory(
 
         return False
 
-    print(f"\n{operation_name}: Trajectory planned successfully.")
-
     if not trajectory.points:
 
-        print("Trajectory contains no points.")
+        print("Trajectory has no points.")
         return False
 
-    print_trajectory(
-        trajectory,
-        joint_type=(
-            "gripper"
-            if "gripper" in operation_name.lower()
-            else "arm"
-        )
-    )
+    print(f"\n{operation_name} planned successfully.")
 
-    if not ask_confirmation("Execute this trajectory?"):
+    print_trajectory(trajectory)
 
-        print("Trajectory planned but not executed.")
+    if not ask_confirmation("Execute this movement?"):
+
+        print("Movement cancelled.")
         return False
 
     if not moveit.execute(trajectory):
@@ -256,7 +301,7 @@ def execute_trajectory(
 
         return False
 
-    print("\nTrajectory sent. Waiting for execution...")
+    print("\nExecuting robot movement...")
 
     success = moveit.wait_until_executed(
         timeout_sec=EXECUTION_TIMEOUT,
@@ -265,10 +310,10 @@ def execute_trajectory(
 
     if success:
 
-        print(f"{operation_name} completed successfully!")
+        print("\nRobot movement completed successfully!")
         return True
 
-    print(f"{operation_name} did not complete successfully.")
+    print("\nRobot movement did not complete.")
 
     failure = moveit.last_failure()
 
@@ -279,148 +324,75 @@ def execute_trajectory(
 
 
 # ============================================================
-# ARM XYZ MOVEMENT
+# JOINT-SPACE MOVEMENT
 # ============================================================
 
-def move_arm_to_xyz(
-    arm_moveit,
-    x,
-    y,
-    z
-):
-    """Plan and execute Cartesian arm movement."""
+def move_by_angles(moveit):
 
-    print("\n========== ARM MOVEMENT ==========")
+    angles = get_joint_angles()
 
-    print(
-        f"Target XYZ: X={x:.4f}, Y={y:.4f}, Z={z:.4f} m"
+    if not ask_confirmation(
+        "Plan movement using these six joint angles?"
+    ):
+
+        print("Joint target cancelled.")
+        return False
+
+    print("\nMoveIt is planning joint-space movement...")
+
+    trajectory = moveit.plan(
+
+        joint_positions=angles,
+
+        joint_names=JOINT_NAMES,
+
+        tolerance_joint_position=JOINT_TOLERANCE,
+
+        timeout_sec=PLANNING_TIMEOUT
     )
+
+    return plan_and_execute(
+        moveit,
+        trajectory,
+        "Joint-angle movement"
+    )
+
+
+# ============================================================
+# END-EFFECTOR XYZ MOVEMENT
+# ============================================================
+
+def move_by_xyz(moveit):
+
+    x, y, z = get_xyz_coordinates()
+
+    if not ask_confirmation(
+        "Plan movement to this XYZ position?"
+    ):
+
+        print("XYZ target cancelled.")
+        return False
 
     print("\nMoveIt is calculating inverse kinematics...")
 
-    trajectory = arm_moveit.plan(
+    trajectory = moveit.plan(
 
         position=[x, y, z],
 
         frame_id=BASE_LINK,
 
-        target_link=ARM_END_EFFECTOR,
+        target_link=END_EFFECTOR,
 
-        tolerance_position=ARM_POSITION_TOLERANCE,
-
-        timeout_sec=PLANNING_TIMEOUT
-    )
-
-    if trajectory is None:
-
-        print("\nNo valid arm trajectory found.")
-
-        failure = arm_moveit.last_failure()
-
-        if failure:
-            print("Planning failure:", failure)
-
-        return False
-
-    return execute_trajectory(
-        arm_moveit,
-        trajectory,
-        "Arm movement"
-    )
-
-
-# ============================================================
-# GRIPPER MOVEMENT
-# ============================================================
-
-def move_gripper(
-    gripper_moveit,
-    target_positions,
-    operation_name
-):
-    """Plan and execute gripper joint movement through MoveIt."""
-
-    print("\n========== GRIPPER MOVEMENT ==========")
-
-    print(f"Operation: {operation_name}")
-
-    print(
-        f"Gripper 1 target: {target_positions[0]:.3f} m"
-    )
-
-    print(
-        f"Gripper 2 target: {target_positions[1]:.3f} m"
-    )
-
-    print("\nMoveIt is planning gripper movement...")
-
-    trajectory = gripper_moveit.plan(
-
-        joint_positions=target_positions,
-
-        joint_names=GRIPPER_JOINT_NAMES,
-
-        tolerance_joint_position=GRIPPER_TOLERANCE,
+        tolerance_position=POSITION_TOLERANCE,
 
         timeout_sec=PLANNING_TIMEOUT
     )
 
-    return execute_trajectory(
-        gripper_moveit,
+    return plan_and_execute(
+        moveit,
         trajectory,
-        f"Gripper {operation_name}"
+        "End-effector XYZ movement"
     )
-
-
-# ============================================================
-# GRIPPER MENU
-# ============================================================
-
-def gripper_menu(gripper_moveit):
-    """Allow the user to open or close the gripper."""
-
-    while True:
-
-        print("\n====================================")
-        print("           GRIPPER CONTROL")
-        print("====================================")
-
-        print("1. Open gripper")
-        print("2. Close gripper")
-        print("3. Skip gripper operation")
-        print("4. Exit program")
-
-        choice = input("\nEnter choice: ").strip()
-
-        if choice == "1":
-
-            move_gripper(
-                gripper_moveit,
-                GRIPPER_OPEN,
-                "OPEN"
-            )
-
-        elif choice == "2":
-
-            move_gripper(
-                gripper_moveit,
-                GRIPPER_CLOSED,
-                "CLOSE"
-            )
-
-        elif choice == "3":
-
-            print("Skipping gripper operation.")
-            return "continue"
-
-        elif choice == "4":
-
-            print("Exiting robot control.")
-            return "exit"
-
-        else:
-
-            print("Invalid choice. Select 1, 2, 3 or 4.")
 
 
 # ============================================================
@@ -429,30 +401,22 @@ def gripper_menu(gripper_moveit):
 
 def main():
 
-    print("\n")
-    print("==========================================")
-    print("       SIX-JOINT ROBOT CONTROL")
+    print("\n==========================================")
+    print("       SIX-AXIS ROBOT CONTROLLER")
     print("==========================================")
 
     print("\nRobot configuration:")
-    print("  Arm joints     : 4 revolute")
-    print("  Gripper joints : 2 prismatic")
-
-    print("\nControl architecture:")
-    print("  Python -> MoveIt 2 -> ROS 2 Control -> Gazebo")
-
-    print("\nReference frame:", BASE_LINK)
-    print("Arm end-effector:", ARM_END_EFFECTOR)
-
-    # --------------------------------------------------------
-    # Initialize ROS 2
-    # --------------------------------------------------------
+    print("  Number of joints : 6")
+    print("  Joint type       : Revolute")
+    print("  Gripper          : Not configured")
+    print("  Planning group   :", PLANNING_GROUP)
+    print("  Base frame       :", BASE_LINK)
+    print("  End-effector     :", END_EFFECTOR)
 
     rclpy.init()
 
     node = Node(
-        "six_joint_robot_client",
-
+        "six_axis_robot_controller",
         parameter_overrides=[
             Parameter(
                 "use_sim_time",
@@ -461,8 +425,7 @@ def main():
         ]
     )
 
-    arm_moveit = None
-    gripper_moveit = None
+    moveit = None
 
     executor = MultiThreadedExecutor(
         num_threads=4
@@ -473,173 +436,83 @@ def main():
     try:
 
         # ----------------------------------------------------
-        # Create ARM MoveIt interface
+        # Initialize MoveIt
         # ----------------------------------------------------
 
-        arm_moveit = MoveIt2(
+        moveit = MoveIt2(
 
             node=node,
 
-            joint_names=ARM_JOINT_NAMES,
+            joint_names=JOINT_NAMES,
 
             base_link_name=BASE_LINK,
 
-            end_effector_name=ARM_END_EFFECTOR,
+            end_effector_name=END_EFFECTOR,
 
-            group_name=ARM_GROUP
+            group_name=PLANNING_GROUP
         )
-
-        # ----------------------------------------------------
-        # Create GRIPPER MoveIt interface
-        # ----------------------------------------------------
-
-        gripper_moveit = MoveIt2(
-
-            node=node,
-
-            joint_names=GRIPPER_JOINT_NAMES,
-
-            base_link_name=GRIPPER_BASE_LINK,
-
-            end_effector_name=GRIPPER_REFERENCE_LINK,
-
-            group_name=GRIPPER_GROUP
-        )
-
-        # ----------------------------------------------------
-        # Start ROS 2 executor
-        # ----------------------------------------------------
 
         executor.add_node(node)
 
         spin_thread = threading.Thread(
-
             target=executor.spin,
-
             daemon=True
         )
 
         spin_thread.start()
 
         # ----------------------------------------------------
-        # Verify joint state feedback
+        # Check joint state feedback
         # ----------------------------------------------------
 
         print("\nWaiting for robot joint states...")
 
-        if not arm_moveit.wait_for_joint_state(
+        if not moveit.wait_for_joint_state(
             timeout_sec=10.0
         ):
 
             raise RuntimeError(
-                "Arm joint states unavailable. "
+                "Joint states unavailable. "
                 "Check joint_state_broadcaster."
             )
 
-        if not gripper_moveit.wait_for_joint_state(
-            timeout_sec=10.0
-        ):
-
-            raise RuntimeError(
-                "Gripper joint states unavailable. "
-                "Check gripper joint definitions and broadcaster."
-            )
-
         print("Robot joint states received.")
-
-        print("\nBoth MoveIt interfaces initialized.")
+        print("MoveIt interface initialized.")
 
         # ----------------------------------------------------
-        # Main movement loop
+        # Main control loop
         # ----------------------------------------------------
 
         while True:
 
-            print("\n==========================================")
-            print("          NEW XYZ TARGET")
-            print("==========================================")
+            choice = select_control_mode()
 
-            try:
+            if choice == "1":
 
-                x = read_coordinate("X")
-                y = read_coordinate("Y")
-                z = read_coordinate("Z")
+                move_by_angles(moveit)
 
-            except KeyboardInterrupt:
+            elif choice == "2":
 
-                print("\nCoordinate input cancelled.")
+                move_by_xyz(moveit)
+
+            elif choice == "3":
+
+                print("\nExiting robot controller.")
                 break
 
-            print("\nTarget position:")
-
-            print(f"  X = {x:.4f} m")
-            print(f"  Y = {y:.4f} m")
-            print(f"  Z = {z:.4f} m")
-
             if not ask_confirmation(
-                "Plan this XYZ target?"
-            ):
-
-                print("Target cancelled.")
-                continue
-
-            # ------------------------------------------------
-            # Arm movement
-            # ------------------------------------------------
-
-            arm_success = move_arm_to_xyz(
-                arm_moveit,
-                x,
-                y,
-                z
-            )
-
-            if not arm_success:
-
-                print("\nArm movement was not completed.")
-
-                if not ask_confirmation(
-                    "Try another XYZ target?"
-                ):
-                    break
-
-                continue
-
-            print("\nRobot reached the requested XYZ position.")
-
-            # ------------------------------------------------
-            # Gripper control
-            # ------------------------------------------------
-
-            gripper_result = gripper_menu(
-                gripper_moveit
-            )
-
-            if gripper_result == "exit":
-                break
-
-            # ------------------------------------------------
-            # Next XYZ target
-            # ------------------------------------------------
-
-            if not ask_confirmation(
-                "Enter another XYZ target?"
+                "Do you want to perform another movement?"
             ):
 
                 print("\nRobot control session completed.")
                 break
 
-        return 0
-
     except KeyboardInterrupt:
 
-        print("\nRobot control interrupted.")
+        print("\nRobot controller interrupted.")
 
-        if arm_moveit is not None:
-            arm_moveit.cancel_execution()
-
-        if gripper_moveit is not None:
-            gripper_moveit.cancel_execution()
+        if moveit is not None:
+            moveit.cancel_execution()
 
         return 130
 
@@ -651,29 +524,24 @@ def main():
 
     finally:
 
-        # ----------------------------------------------------
-        # Cleanup
-        # ----------------------------------------------------
+        print("\nShutting down robot controller...")
 
-        print("\nShutting down robot control interface...")
-
-        if arm_moveit is not None:
-            arm_moveit.destroy()
-
-        if gripper_moveit is not None:
-            gripper_moveit.destroy()
+        if moveit is not None:
+            moveit.destroy()
 
         executor.shutdown()
+
+        if spin_thread is not None:
+            spin_thread.join(timeout=2.0)
 
         node.destroy_node()
 
         if rclpy.ok():
             rclpy.shutdown()
 
-        if spin_thread is not None:
-            spin_thread.join(timeout=2.0)
-
         print("ROS 2 shutdown complete.")
+
+    return 0
 
 
 # ============================================================
