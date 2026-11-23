@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<robot name="ur_style_6dof" xmlns:xacro="http://www.ros.org/wiki/xacro">
+<robot name="six_joint_robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- =========================================================
        Six-joint arm rebuilt from the CAD housings (visual meshes + simple cylinder collision).
@@ -14,7 +14,8 @@
        it anticlockwise seen from above.
        ========================================================= -->
 
-  <xacro:arg name="mesh_dir" default="$(find six_joint_description)/meshes"/>
+  <!-- file:// prefix: RViz cannot load a bare absolute path (Gazebo can) -->
+  <xacro:arg name="mesh_dir" default="file://$(find six_joint_description)/meshes"/>
   <xacro:arg name="controllers_file" default=""/>
 
   <material name="base_dark"><color rgba="0.20 0.23 0.26 1.0"/></material>
