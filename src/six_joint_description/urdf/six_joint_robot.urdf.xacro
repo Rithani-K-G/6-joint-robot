@@ -2,7 +2,7 @@
 <robot name="ur_style_6dof" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- =========================================================
-       Six-joint arm rebuilt from the CAD housings.
+       Six-joint arm rebuilt from the CAD housings (visual meshes + simple cylinder collision).
 
        The STL files share one CAD world frame in the assembled pose.
        That assembled CAD pose is q = 0 (same approach as the 5-joint robot).
@@ -22,7 +22,17 @@
   <material name="arm_lightgrey"><color rgba="0.68 0.70 0.72 1.0"/></material>
   <material name="flange_metal"><color rgba="0.48 0.51 0.54 1.0"/></material>
 
-  <!-- Visual only for now. Collision geometry is added in the next step. -->
+  <!-- Simple collision: one cylinder per CAD part, fitted to the mesh (cylinder axis = local z). -->
+  <xacro:macro name="cyl_collision" params="xyz rpy radius length">
+    <collision>
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+      <geometry>
+        <cylinder radius="${radius}" length="${length}"/>
+      </geometry>
+    </collision>
+  </xacro:macro>
+
+  <!-- Full-resolution CAD mesh, visual only. -->
   <xacro:macro name="cad_mesh" params="file xyz rpy mat">
     <visual>
       <origin xyz="${xyz}" rpy="${rpy}"/>
@@ -55,6 +65,9 @@
       xyz="0.000000000 0.000000000 0.000000000"
       rpy="0.000000000 0.000000000 0.000000000"
       mat="base_dark"/>
+    <xacro:cyl_collision xyz="0.000002500 0.000000000 0.033000000"
+      rpy="0.000000000 0.000000000 1.570796327"
+      radius="0.1300" length="0.0660"/>
     <xacro:approx_inertial mass="8.0" inertia="0.1" xyz="0.000002500 0.000000000 0.033000000"/>
   </link>
 
@@ -67,6 +80,12 @@
       xyz="0.000000000 0.000000000 -0.089200000"
       rpy="0.000000000 0.000000000 0.000000000"
       mat="joint_bluegrey"/>
+    <xacro:cyl_collision xyz="0.000000245 -0.000001545 -0.011200000"
+      rpy="0.000000000 0.000000000 1.570796327"
+      radius="0.0784" length="0.0600"/>
+    <xacro:cyl_collision xyz="0.000000055 0.000000025 -0.000041750"
+      rpy="-2.003225054 1.570796327 0.000000000"
+      radius="0.0742" length="0.1506"/>
     <xacro:approx_inertial mass="3.0" inertia="0.05" xyz="0.000000055 0.000000025 -0.000041750"/>
   </link>
 
@@ -79,6 +98,12 @@
       xyz="0.000000000 0.089200000 0.000000000"
       rpy="1.570796327 0.432428727 0.000000000"
       mat="joint_bluegrey"/>
+    <xacro:cyl_collision xyz="-0.121885550 -0.174028773 -0.000475532"
+      rpy="1.576653480 -1.056246630 -0.615602829"
+      radius="0.0502" length="0.4531"/>
+    <xacro:cyl_collision xyz="-0.243768682 -0.348098900 -0.000951573"
+      rpy="0.000000000 0.000000000 1.570796327"
+      radius="0.0607" length="0.1285"/>
     <xacro:approx_inertial mass="8.0" inertia="0.08" xyz="-0.142988062 -0.184195745 -0.008171065"/>
   </link>
 
@@ -91,6 +116,12 @@
       xyz="0.244178236 0.437700000 0.000958718"
       rpy="1.570796327 0.432428727 0.000000000"
       mat="joint_bluegrey"/>
+    <xacro:cyl_collision xyz="-0.183885523 0.067479542 -0.000713775"
+      rpy="1.575373360 0.634101818 -1.917119359"
+      radius="0.0420" length="0.4203"/>
+    <xacro:cyl_collision xyz="-0.368181643 0.134558650 -0.001431705"
+      rpy="0.000000000 0.000000000 1.570796327"
+      radius="0.0495" length="0.0964"/>
     <xacro:approx_inertial mass="6.0" inertia="0.06" xyz="-0.202202594 0.069991750 -0.003395359"/>
   </link>
 
@@ -103,6 +134,12 @@
       xyz="0.613040258 0.302500000 0.002410709"
       rpy="1.570796327 0.432428727 0.000000000"
       mat="joint_bluegrey"/>
+    <xacro:cyl_collision xyz="0.000891838 -0.000642130 -0.054554281"
+      rpy="-0.002780339 0.000577553 1.571062904"
+      radius="0.0381" length="0.1372"/>
+    <xacro:cyl_collision xyz="0.001106594 -0.000641600 -0.109129338"
+      rpy="-1.570796327 0.000000000 -1.570796327"
+      radius="0.0450" length="0.0863"/>
     <xacro:approx_inertial mass="2.0" inertia="0.02" xyz="0.002567792 -0.000641600 -0.071863660"/>
   </link>
 
@@ -119,6 +156,15 @@
       xyz="-0.304200000 -0.111058548 0.611973936"
       rpy="1.570796327 -1.138367599 1.570796327"
       mat="joint_bluegrey"/>
+    <xacro:cyl_collision xyz="-0.001057792 0.000667434 -0.047284388"
+      rpy="3.137665641 0.000070017 -3.141560336"
+      radius="0.0350" length="0.1227"/>
+    <xacro:cyl_collision xyz="-0.042207800 0.000851884 -0.094609613"
+      rpy="-1.570848444 -0.432428725 -1.570693437"
+      radius="0.0320" length="0.1103"/>
+    <xacro:cyl_collision xyz="-0.001057800 0.000850295 -0.094608879"
+      rpy="-1.570796327 -0.432428727 -1.570796327"
+      radius="0.0381" length="0.0600"/>
     <xacro:approx_inertial mass="1.5" inertia="0.015" xyz="-0.031708200 -0.001353939 -0.052189453"/>
   </link>
 
@@ -127,6 +173,9 @@
       xyz="0.706743971 0.112362627 -0.303100000"
       rpy="0.000000000 0.000000000 -0.432428727"
       mat="flange_metal"/>
+    <xacro:cyl_collision xyz="0.000160299 0.000453243 -0.089257800"
+      rpy="0.000000000 0.000000000 1.138367599"
+      radius="0.0340" length="0.0140"/>
     <xacro:approx_inertial mass="1.0" inertia="0.01" xyz="0.000160299 0.000453243 -0.089257800"/>
   </link>
 
