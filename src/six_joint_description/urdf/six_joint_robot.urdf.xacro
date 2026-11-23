@@ -9,6 +9,8 @@
   <xacro:arg name="mesh_dir"
              default="$(find six_joint_description)/meshes"/>
 
+  <xacro:arg name="controllers_file" default=""/>
+
   <!-- =========================================================
        MATERIALS: industrial blue-grey UR-inspired appearance
        ========================================================= -->
@@ -459,9 +461,7 @@
   <gazebo>
     <plugin filename="gz_ros2_control-system"
             name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-      <parameters>
-        $(find six_joint_description)/config/ros2_controllers.yaml
-      </parameters>
+      <parameters>$(arg controllers_file)</parameters>
     </plugin>
   </gazebo>
 
