@@ -2,45 +2,28 @@
 <robot name="ur_style_6dof" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- =========================================================
-       CONFIGURATION
-       Put the CAD STL files inside six_joint_description/meshes/
+       Six-joint arm rebuilt from the CAD housings.
+
+       The STL files share one CAD world frame in the assembled pose.
+       That assembled CAD pose is q = 0 (same approach as the 5-joint robot).
+       Every joint frame sits on a measured joint axis, so each mesh visual
+       origin is just the inverse of its link frame: the meshes line up
+       exactly at q = 0.
+
+       Positive joint direction: joints 2-4 raise the arm, joint 1 turns
+       it anticlockwise seen from above.
        ========================================================= -->
 
-  <xacro:arg name="mesh_dir"
-           default="package://six_joint_description/meshes"/>
-
+  <xacro:arg name="mesh_dir" default="$(find six_joint_description)/meshes"/>
   <xacro:arg name="controllers_file" default=""/>
 
-  <!-- =========================================================
-       MATERIALS: industrial blue-grey UR-inspired appearance
-       ========================================================= -->
+  <material name="base_dark"><color rgba="0.20 0.23 0.26 1.0"/></material>
+  <material name="joint_bluegrey"><color rgba="0.34 0.42 0.47 1.0"/></material>
+  <material name="arm_lightgrey"><color rgba="0.68 0.70 0.72 1.0"/></material>
+  <material name="flange_metal"><color rgba="0.48 0.51 0.54 1.0"/></material>
 
-  <material name="base_dark">
-    <color rgba="0.20 0.23 0.26 1.0"/>
-  </material>
-
-  <material name="joint_bluegrey">
-    <color rgba="0.34 0.42 0.47 1.0"/>
-  </material>
-
-  <material name="arm_lightgrey">
-    <color rgba="0.68 0.70 0.72 1.0"/>
-  </material>
-
-  <material name="flange_metal">
-    <color rgba="0.48 0.51 0.54 1.0"/>
-  </material>
-
-  <!-- =========================================================
-       MACRO: CAD mesh visual and collision
-
-       STL coordinates are in millimetres.
-       Scale converts them to metres.
-       xyz/rpy compensate for the CAD world-coordinate export.
-       ========================================================= -->
-
+  <!-- Visual only for now. Collision geometry is added in the next step. -->
   <xacro:macro name="cad_mesh" params="file xyz rpy mat">
-
     <visual>
       <origin xyz="${xyz}" rpy="${rpy}"/>
       <geometry>
@@ -48,416 +31,196 @@
       </geometry>
       <material name="${mat}"/>
     </visual>
-
   </xacro:macro>
 
-  <!-- =========================================================
-       MACRO: temporary inertial values
-
-       Replace these with CAD-derived mass and inertia values
-       before relying on physical simulation.
-       ========================================================= -->
-
-  <xacro:macro name="approx_inertial" params="mass inertia">
+  <!-- Placeholder inertia. COM is the centre of the link's meshes. -->
+  <xacro:macro name="approx_inertial" params="mass inertia xyz">
     <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
       <mass value="${mass}"/>
-      <inertia
-        ixx="${inertia}" ixy="0" ixz="0"
-        iyy="${inertia}" iyz="0"
-        izz="${inertia}"/>
+      <inertia ixx="${inertia}" ixy="0" ixz="0" iyy="${inertia}" iyz="0" izz="${inertia}"/>
     </inertial>
   </xacro:macro>
 
   <!-- World anchor -->
   <link name="world"/>
-
   <joint name="world_to_base" type="fixed">
     <parent link="world"/>
     <child link="base_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <!-- =========================================================
-       LINK 0: BASE
-       ========================================================= -->
-
   <link name="base_link">
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_base.stl"
-      xyz="0 0 0"
-      rpy="0 0 0"
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_base.stl"
+      xyz="0.000000000 0.000000000 0.000000000"
+      rpy="0.000000000 0.000000000 0.000000000"
       mat="base_dark"/>
-
-    <xacro:approx_inertial mass="8.0" inertia="0.10"/>
-
+    <xacro:approx_inertial mass="8.0" inertia="0.1" xyz="0.000002500 0.000000000 0.033000000"/>
   </link>
-
-
-  <!-- =========================================================
-       LINK 1: SHOULDER
-       CAD parts:
-         part_j1.stl
-         part_link2.stl
-
-       Both are attached to the link after joint 1.
-       ========================================================= -->
 
   <link name="shoulder_link">
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_j1.stl"
-      xyz="0 -0.089160 0"
-      rpy="-1.570796327 -0.436332313 0"
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_j1.stl"
+      xyz="0.000000000 0.000000000 -0.089200000"
+      rpy="0.000000000 0.000000000 0.000000000"
       mat="joint_bluegrey"/>
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_link2.stl"
-      xyz="0 -0.089160 0"
-      rpy="-1.570796327 -0.436332313 0"
-      mat="arm_lightgrey"/>
-
-    <xacro:approx_inertial mass="3.0" inertia="0.05"/>
-
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_j2.stl"
+      xyz="0.000000000 0.000000000 -0.089200000"
+      rpy="0.000000000 0.000000000 0.000000000"
+      mat="joint_bluegrey"/>
+    <xacro:approx_inertial mass="3.0" inertia="0.05" xyz="0.000000055 0.000000025 -0.000041750"/>
   </link>
-
-
-  <!-- =========================================================
-       LINK 2: UPPER ARM
-       CAD parts:
-         part_j2.stl
-         part_link3.stl
-       ========================================================= -->
 
   <link name="upper_arm_link">
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_j2.stl"
-      xyz="0.498035596 -0.051140075 0"
-      rpy="-1.570796327 -0.436332313 0.959931089"
-      mat="joint_bluegrey"/>
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_link3.stl"
-      xyz="0.498035596 -0.051140075 0"
-      rpy="-1.570796327 -0.436332313 0.959931089"
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_link2.stl"
+      xyz="0.000000000 0.089200000 0.000000000"
+      rpy="1.570796327 0.432428727 0.000000000"
       mat="arm_lightgrey"/>
-
-    <xacro:approx_inertial mass="8.0" inertia="0.08"/>
-
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_j3.stl"
+      xyz="0.000000000 0.089200000 0.000000000"
+      rpy="1.570796327 0.432428727 0.000000000"
+      mat="joint_bluegrey"/>
+    <xacro:approx_inertial mass="8.0" inertia="0.08" xyz="-0.142988062 -0.184195745 -0.008171065"/>
   </link>
-
-
-  <!-- =========================================================
-       LINK 3: FOREARM
-       CAD parts:
-         part_j3.stl
-         part_link4.stl
-       ========================================================= -->
 
   <link name="forearm_link">
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_j3.stl"
-      xyz="0.471753578 -0.494301470 0"
-      rpy="-1.570796327 -0.436332313 -0.349065850"
-      mat="joint_bluegrey"/>
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_link4.stl"
-      xyz="0.471753578 -0.494301470 0"
-      rpy="-1.570796327 -0.436332313 -0.349065850"
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_link3.stl"
+      xyz="0.244178236 0.437700000 0.000958718"
+      rpy="1.570796327 0.432428727 0.000000000"
       mat="arm_lightgrey"/>
-
-    <xacro:approx_inertial mass="6.0" inertia="0.06"/>
-
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_j4.stl"
+      xyz="0.244178236 0.437700000 0.000958718"
+      rpy="1.570796327 0.432428727 0.000000000"
+      mat="joint_bluegrey"/>
+    <xacro:approx_inertial mass="6.0" inertia="0.06" xyz="-0.202202594 0.069991750 -0.003395359"/>
   </link>
-
-
-  <!-- =========================================================
-       LINK 4: WRIST 1
-       CAD parts:
-         part_j4.stl
-         part_link5.stl
-       ========================================================= -->
 
   <link name="wrist_1_link">
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_j4.stl"
-      xyz="0.303142218 -0.109150000 -0.612364416"
-      rpy="-1.570796327 1.134464014 1.570796327"
-      mat="joint_bluegrey"/>
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_link5.stl"
-      xyz="0.303142218 -0.109150000 -0.612364416"
-      rpy="-1.570796327 1.134464014 1.570796327"
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_link4.stl"
+      xyz="0.613040258 0.302500000 0.002410709"
+      rpy="1.570796327 0.432428727 0.000000000"
       mat="arm_lightgrey"/>
-
-    <xacro:approx_inertial mass="2.0" inertia="0.02"/>
-
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_j5.stl"
+      xyz="0.613040258 0.302500000 0.002410709"
+      rpy="1.570796327 0.432428727 0.000000000"
+      mat="joint_bluegrey"/>
+    <xacro:approx_inertial mass="2.0" inertia="0.02" xyz="0.002567792 -0.000641600 -0.071863660"/>
   </link>
-
-
-  <!-- =========================================================
-       LINK 5: WRIST 2
-       CAD parts:
-         part_j5.stl
-         part_link6.stl
-       ========================================================= -->
 
   <link name="wrist_2_link">
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_j5.stl"
-      xyz="0.109150000 0.707014416 0.303142218"
-      rpy="-3.141592654 0 2.007128640"
-      mat="joint_bluegrey"/>
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_link6.stl"
-      xyz="0.109150000 0.707014416 0.303142218"
-      rpy="-3.141592654 0 2.007128640"
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_link5.stl"
+      xyz="-0.304200000 -0.111058548 0.611973936"
+      rpy="1.570796327 -1.138367599 1.570796327"
       mat="arm_lightgrey"/>
-
-    <xacro:approx_inertial mass="1.5" inertia="0.015"/>
-
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_link6.stl"
+      xyz="-0.304200000 -0.111058548 0.611973936"
+      rpy="1.570796327 -1.138367599 1.570796327"
+      mat="arm_lightgrey"/>
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_j6.stl"
+      xyz="-0.304200000 -0.111058548 0.611973936"
+      rpy="1.570796327 -1.138367599 1.570796327"
+      mat="joint_bluegrey"/>
+    <xacro:approx_inertial mass="1.5" inertia="0.015" xyz="-0.031708200 -0.001353939 -0.052189453"/>
   </link>
-
-
-  <!-- =========================================================
-       LINK 6: WRIST 3
-       CAD parts:
-         part_j6.stl
-         part_flange.stl
-
-       Gripper is intentionally excluded.
-       ========================================================= -->
 
   <link name="wrist_3_link">
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_j6.stl"
-      xyz="0.109150000 0.707014416 0.220842218"
-      rpy="-3.141592654 0 2.007128640"
-      mat="joint_bluegrey"/>
-
-    <xacro:cad_mesh
-      file="$(arg mesh_dir)/part_flange.stl"
-      xyz="0.109150000 0.707014416 0.220842218"
-      rpy="-3.141592654 0 2.007128640"
+    <xacro:cad_mesh file="$(arg mesh_dir)/part_flange.stl"
+      xyz="0.706743971 0.112362627 -0.303100000"
+      rpy="0.000000000 0.000000000 -0.432428727"
       mat="flange_metal"/>
-
-    <xacro:approx_inertial mass="1.0" inertia="0.01"/>
-
+    <xacro:approx_inertial mass="1.0" inertia="0.01" xyz="0.000160299 0.000453243 -0.089257800"/>
   </link>
-
-
-  <!-- =========================================================
-       JOINT 1: BASE ROTATION
-       DH: d=89.16 mm, a=0, alpha=90 degrees
-
-       The revolute joint performs Rz(theta).
-       The following fixed joint performs Tz(d) Tx(a) Rx(alpha).
-       ========================================================= -->
-
-  <link name="j1_rot_link"/>
 
   <joint name="shoulder_pan_joint" type="revolute">
     <parent link="base_link"/>
-    <child link="j1_rot_link"/>
-    <origin xyz="0 0 0.08916" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit lower="-6.283185" upper="6.283185"
-           effort="150" velocity="3.14"/>
-  </joint>
-
-  <joint name="dh1_fixed" type="fixed">
-    <parent link="j1_rot_link"/>
     <child link="shoulder_link"/>
-    <origin xyz="0 0 0" rpy="1.570796327 0 0"/>
+    <origin xyz="0.000000000 0.000000000 0.089200000" rpy="0.000000000 0.000000000 0.000000000"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.283185" upper="6.283185" effort="150" velocity="3.14"/>
   </joint>
-
-
-  <!-- =========================================================
-       JOINT 2: SHOULDER
-       DH: d=0, a=-425 mm, alpha=0
-       ========================================================= -->
-
-  <link name="j2_rot_link"/>
 
   <joint name="shoulder_lift_joint" type="revolute">
     <parent link="shoulder_link"/>
-    <child link="j2_rot_link"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit lower="-6.283185" upper="6.283185"
-           effort="150" velocity="3.14"/>
-  </joint>
-
-  <joint name="dh2_fixed" type="fixed">
-    <parent link="j2_rot_link"/>
     <child link="upper_arm_link"/>
-    <origin xyz="-0.425 0 0" rpy="0 0 0"/>
+    <origin xyz="0.000000000 0.000000000 0.000000000" rpy="-1.570796327 0.000000000 0.432428727"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.283185" upper="6.283185" effort="150" velocity="3.14"/>
   </joint>
-
-
-  <!-- =========================================================
-       JOINT 3: ELBOW
-       DH: d=0, a=-392.25 mm, alpha=0
-       ========================================================= -->
-
-  <link name="j3_rot_link"/>
 
   <joint name="elbow_joint" type="revolute">
     <parent link="upper_arm_link"/>
-    <child link="j3_rot_link"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit lower="-6.283185" upper="6.283185"
-           effort="150" velocity="3.14"/>
-  </joint>
-
-  <joint name="dh3_fixed" type="fixed">
-    <parent link="j3_rot_link"/>
     <child link="forearm_link"/>
-    <origin xyz="-0.39225 0 0" rpy="0 0 0"/>
+    <origin xyz="-0.244178236 -0.348500000 -0.000958718" rpy="0.000000000 0.000000000 0.000000000"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.283185" upper="6.283185" effort="150" velocity="3.14"/>
   </joint>
-
-
-  <!-- =========================================================
-       JOINT 4: WRIST 1
-       DH: d=109.15 mm, a=0, alpha=90 degrees
-       ========================================================= -->
-
-  <link name="j4_rot_link"/>
 
   <joint name="wrist_1_joint" type="revolute">
     <parent link="forearm_link"/>
-    <child link="j4_rot_link"/>
-    <origin xyz="0 0 0.10915" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit lower="-6.283185" upper="6.283185"
-           effort="60" velocity="3.14"/>
-  </joint>
-
-  <joint name="dh4_fixed" type="fixed">
-    <parent link="j4_rot_link"/>
     <child link="wrist_1_link"/>
-    <origin xyz="0 0 0" rpy="1.570796327 0 0"/>
+    <origin xyz="-0.368862023 0.135200000 -0.001451991" rpy="0.000000000 0.000000000 0.000000000"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.283185" upper="6.283185" effort="60" velocity="3.14"/>
   </joint>
-
-
-  <!-- =========================================================
-       JOINT 5: WRIST 2
-       DH: d=94.65 mm, a=0, alpha=-90 degrees
-       ========================================================= -->
-
-  <link name="j5_rot_link"/>
 
   <joint name="wrist_2_joint" type="revolute">
     <parent link="wrist_1_link"/>
-    <child link="j5_rot_link"/>
-    <origin xyz="0 0 0.09465" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit lower="-6.283185" upper="6.283185"
-           effort="60" velocity="3.14"/>
-  </joint>
-
-  <joint name="dh5_fixed" type="fixed">
-    <parent link="j5_rot_link"/>
     <child link="wrist_2_link"/>
-    <origin xyz="0 0 0" rpy="-1.570796327 0 0"/>
+    <origin xyz="0.001066322 -0.001700000 -0.108647839" rpy="-1.570796327 0.000000000 -1.570796327"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.283185" upper="6.283185" effort="60" velocity="3.14"/>
   </joint>
-
-
-  <!-- =========================================================
-       JOINT 6: WRIST 3
-       DH: d=82.30 mm, a=0, alpha=0
-       ========================================================= -->
-
-  <link name="j6_rot_link"/>
 
   <joint name="wrist_3_joint" type="revolute">
     <parent link="wrist_2_link"/>
-    <child link="j6_rot_link"/>
-    <origin xyz="0 0 0.08230" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit lower="-6.283185" upper="6.283185"
-           effort="60" velocity="3.14"/>
-  </joint>
-
-  <joint name="dh6_fixed" type="fixed">
-    <parent link="j6_rot_link"/>
     <child link="wrist_3_link"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <origin xyz="-0.001100000 0.001304079 -0.094770034" rpy="-3.141592654 -1.570796327 0.000000000"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.283185" upper="6.283185" effort="60" velocity="3.14"/>
   </joint>
-
-
-  <!-- =========================================================
-       TOOL0: FIXED END-EFFECTOR REFERENCE FRAME
-       No gripper geometry or gripper joints.
-       ========================================================= -->
 
   <link name="tool0"/>
-
   <joint name="tool0_fixed_joint" type="fixed">
     <parent link="wrist_3_link"/>
     <child link="tool0"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <origin xyz="0.000125723 0.000272385 -0.096300000" rpy="3.141592654 0.000000000 0.000000000"/>
   </joint>
 
-
-  <!-- =========================================================
-       ROS 2 CONTROL: SIX REVOLUTE JOINTS ONLY
-       ========================================================= -->
-
   <ros2_control name="GazeboSimSystem" type="system">
-
     <hardware>
       <plugin>gz_ros2_control/GazeboSimSystem</plugin>
     </hardware>
-
     <joint name="shoulder_pan_joint">
       <command_interface name="position"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
-
     <joint name="shoulder_lift_joint">
       <command_interface name="position"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
-
     <joint name="elbow_joint">
       <command_interface name="position"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
-
     <joint name="wrist_1_joint">
       <command_interface name="position"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
-
     <joint name="wrist_2_joint">
       <command_interface name="position"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
-
     <joint name="wrist_3_joint">
       <command_interface name="position"/>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
-
   </ros2_control>
 
-  <!-- Gazebo Harmonic ros2_control integration -->
   <gazebo>
     <plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
       <parameters>$(arg controllers_file)</parameters>
