@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 
 """
@@ -44,8 +43,8 @@ JOINT_NAMES = [
     "wrist_3_joint"
 ]
 
-BASE_LINK = "shoulder_link"
-END_EFFECTOR = "wrist_3_link"
+BASE_LINK = "base_link"       
+END_EFFECTOR = "tool0"       
 
 PLANNING_GROUP = "arm"
 

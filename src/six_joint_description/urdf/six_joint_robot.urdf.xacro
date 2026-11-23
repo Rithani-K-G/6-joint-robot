@@ -7,7 +7,7 @@
        ========================================================= -->
 
   <xacro:arg name="mesh_dir"
-             default="$(find six_joint_description)/meshes"/>
+           default="package://six_joint_description/meshes"/>
 
   <xacro:arg name="controllers_file" default=""/>
 
@@ -76,13 +76,20 @@
     </inertial>
   </xacro:macro>
 
+  <!-- World anchor -->
+  <link name="world"/>
+
+  <joint name="world_to_base" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
 
   <!-- =========================================================
        LINK 0: BASE
        ========================================================= -->
 
   <link name="base_link">
-
     <xacro:cad_mesh
       file="$(arg mesh_dir)/part_base.stl"
       xyz="0 0 0"
@@ -459,8 +466,7 @@
 
   <!-- Gazebo Harmonic ros2_control integration -->
   <gazebo>
-    <plugin filename="gz_ros2_control-system"
-            name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+    <plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
       <parameters>$(arg controllers_file)</parameters>
     </plugin>
   </gazebo>
