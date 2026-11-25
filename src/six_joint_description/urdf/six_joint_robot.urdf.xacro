@@ -199,9 +199,10 @@
 
     <!-- Actual gripper CAD model -->
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0.594644 0.397721 -0.163842"
+            rpy="0 0 0"/>
       <geometry>
-        <mesh filename="$(arg mesh_dir)/part_gripper.stl"
+        <mesh filename="package://six_joint_description/meshes/part_gripper.stl"
               scale="0.001 0.001 0.001"/>
       </geometry>
     </visual>
