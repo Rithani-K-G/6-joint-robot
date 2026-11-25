@@ -199,12 +199,15 @@
 
     <!-- Actual gripper CAD model -->
     <visual>
-      <origin xyz="0.594644 0.397721 -0.163842"
+      <origin xyz="0.594644 0.397721 -0.263842"
             rpy="0 0 0"/>
       <geometry>
         <mesh filename="package://six_joint_description/meshes/part_gripper.stl"
               scale="0.001 0.001 0.001"/>
       </geometry>
+      <material name="light_grey">
+        <color rgba="0.75 0.75 0.75 1.0"/>
+      </material>
     </visual>
 
     <!-- Simplified collision geometry -->
